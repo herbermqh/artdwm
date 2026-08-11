@@ -1,65 +1,85 @@
-#!/bin/dash
-
-# ^c$var^ = fg color
-# ^b$var^ = bg color
+#!/bin/bash
 
 interval=0
-
-# load colors
-. ~/.config/chadwm/scripts/bar_themes/tundra
 
 cpu() {
   cpu_val=$(grep -o "^[^ ]*" /proc/loadavg)
 
-  printf "^c$black^ ^b$green^ CPU"
-  printf "^c$white^ ^b$grey^ $cpu_val ^b$black^"
+  printf "^c#3b414d^ ^b#A3BE8C^ CPU"
+  printf "^c#abb2bf^ ^b#414753^ $cpu_val"
 }
 
-pkg_updates() {
-  #updates=$({ timeout 20 doas xbps-install -un 2>/dev/null || true; } | wc -l) # void
-  updates=$({ timeout 20 checkupdates 2>/dev/null || true; } | wc -l) # arch
-  # updates=$({ timeout 20 aptitude search '~U' 2>/dev/null || true; } | wc -l)  # apt (ubuntu, debian etc)
+# cpu() {
+#   eval "$(mpstat | awk '{print $13}' | xargs | awk '{print "CPU_NOT_USE="$2}')"
 
-  if [ -z "$updates" ]; then
-    printf "  ^c$green^    Fully Updated"
-  else
-    printf "  ^c$white^    $updates"" updates"
-  fi
+#   printf "^c#3b414d^ ^b#A3BE8C^ CPU"
+#   printf "^c#abb2bf^ ^b#414753^ $(echo "100-$CPU_NOT_USE"|bc -l)"
+# }
+
+temperature_cpu() {
+  printf "^c#94af7d^ "
+  printf "^c#94af7d^ $(sensors -u coretemp-isa-0000 | sed "s/.000//g" | awk '{print $2}' | xargs | awk '{print $3}')ºC"
 }
 
-battery() {
-  val="$(cat /sys/class/power_supply/BAT1/capacity)"
-  printf "^c$black^ ^b$red^ BAT"
-  printf "^c$white^ ^b$grey^ $val ^b$black^"
+# update_icon() {
+#   printf "^c#94af7d^ "
+# }
 
+# pkg_updates() {
+#   # updates=$(doas xbps-install -un | wc -l) # void
+#   updates=$(checkupdates | wc -l)   # arch , needs pacman contrib
+#   # updates=$(aptitude search '~U' | wc -l)  # apt (ubuntu,debian etc)
+
+#   if [ -z "$updates" ]; then
+#     printf "^c#94af7d^ Fully Updated"
+#   else
+#     printf "^c#94af7d^ $updates"" updates"
+#   fi
+# }
+
+# battery
+batt() {
+  # printf "^c#81A1C1^  "
+  # printf "^c#81A1C1^ $(acpi | sed "s/,//g" | xargs | awk '{if ($3 == "Discharging"){print $4; exit} else {print $4""}}')"
+  printf "^c#81A1C1^ $(acpi | sed "s/%//g" | sed "s/,//g" |xargs | awk '{if ($3 == "Discharging"){print ""} else {if ($3 == "Full"){print ""}else{print ""}}}')"
+  printf "^c#81A1C1^ $(acpi | sed "s/%//g" | sed "s/,//g" | xargs | awk '{print $4}')"
 }
 
 brightness() {
-  printf "^c$red^   "
-  printf "^c$red^%.0f\n" $(cat /sys/class/backlight/*/brightness)
+
+  backlight() {
+    backlight="$(xbacklight -get)"
+    echo -e "$backlight"
+  }
+
+
+  printf "^c#BF616A^  "
+  printf "^c#BF616A^%.0f\n" $(backlight)
 }
 
 mem() {
-  printf "^c$red^^b$black^  "
-  printf "^c$red^ $(free -h | awk '/^Mem/ { print $3 }' | sed s/i//g)"
+  printf "^c#94af7d^  "
+  printf "^c#94af7d^ $(free -h | awk '/^Mem/ { print $3 }' | sed s/i//g)"
 }
 
 wlan() {
-	case "$(cat /sys/class/net/wl*/operstate 2>/dev/null)" in
-	up) printf "^c$black^ ^b$blue^ 󰤨 ^d^%s" " ^c$blue^Connected" ;;
-	down) printf "^c$black^ ^b$blue^ 󰤭 ^d^%s" " ^c$blue^Disconnected" ;;
-	esac
+  case "$(cat /sys/class/net/w*/operstate 2>/dev/null)" in 
+  up) printf "^c#BF616A^  ^d^%s";;
+  down) printf "^c#BF616A^ 睊 ^d^%s";;
+  esac
 }
 
 clock() {
-	printf "^c$black^ ^b$darkblue^ 󱑆 "
-	printf "^c$black^^b$blue^ $(date '+%H:%M')  "
+  printf "^c#81A1C1^  "
+  printf "^c#81A1C1^ $(date '+%a, %I:%M %p') "
 }
 
 while true; do
 
-  [ $interval = 0 ] || [ $(($interval % 3600)) = 0 ] && updates=$(pkg_updates)
+  # [ $interval == 0 ] || [ $(($interval % 3600)) == 0 ] && updates=$(pkg_updates)
+  [ $interval == 0 ] || [ $(($interval % 3600)) == 0 ]
   interval=$((interval + 1))
 
-  sleep 1 && xsetroot -name "$updates $(cpu) $(battery) $(mem) $(wlan) $(clock)"
+  sleep 1 && xsetroot -name "$(temperature_cpu) $(batt) $(brightness) $(mem) $(wlan) $(clock)"
+  # sleep 1 && xsetroot -name "$(update_icon) $updates $(batt) $(brightness) $(cpu) $(mem) $(wlan) $(clock)"
 done

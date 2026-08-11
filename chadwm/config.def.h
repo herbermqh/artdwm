@@ -3,8 +3,8 @@
 #include <X11/XF86keysym.h>
 
 /* appearance */
-static const unsigned int borderpx  = 3;        /* border pixel of windows */
-static const unsigned int default_border = 3;   /* to switch back to default border after dynamic border resizing via keybinds */
+static const unsigned int borderpx  = 0;        /* border pixel of windows */
+static const unsigned int default_border = 0;   /* to switch back to default border after dynamic border resizing via keybinds */
 static const unsigned int snap      = 32;       /* snap pixel */
 static const unsigned int gappih    = 10;       /* horiz inner gap between windows */
 static const unsigned int gappiv    = 10;       /* vert inner gap between windows */
@@ -29,16 +29,17 @@ static const int horizpadtabo       = 15;
 static const int scalepreview       = 4;
 static const int tag_preview        = 0;        /* 1 means enable, 0 is off */
 static const int colorfultag        = 1;        /* 0 means use SchemeSel for selected non vacant tag */
-static const char *upvol[]   = { "/usr/bin/pactl", "set-sink-volume", "0", "+5%",     NULL };
-static const char *downvol[] = { "/usr/bin/pactl", "set-sink-volume", "0", "-5%",     NULL };
-static const char *mutevol[] = { "/usr/bin/pactl", "set-sink-mute",   "0", "toggle",  NULL };
-static const char *light_up[] = {"/usr/bin/light", "-A", "5", NULL};
-static const char *light_down[] = {"/usr/bin/light", "-U", "5", NULL};
+static const char *upvol[]   = { "/usr/bin/pamixer", "-i", "5", NULL };
+static const char *downvol[] = { "/usr/bin/pamixer", "-d", "5", NULL };
+static const char *mutevol[] = { "/usr/bin/pamixer", "-t", NULL };
+static const char *light_up[] = { "/usr/bin/brightnessctl", "set", "+5%", NULL };
+static const char *light_down[] = { "/usr/bin/brightnessctl", "set", "5%-", NULL };
 static const int new_window_attach_on_end = 0; /*  1 means the new window will attach on the end; 0 means the new window will attach on the front,default is front */
 #define ICONSIZE 19   /* icon size */
 #define ICONSPACING 8 /* space between icon and title */
 
-static const char *fonts[]          = {"Iosevka:style:medium:size=12" ,"JetBrainsMono Nerd Font Mono:style:medium:size=19" };
+static const char *fonts[]          = { "Hack Nerd Font:size=10",
+                                        "Hack Nerd Font:size=15" };
 
 // theme
 #include "themes/tundra.h"
@@ -63,9 +64,9 @@ static const char *colors[][3]      = {
 };
 
 /* tagging */
-static char *tags[] = {"", "", "", "", ""};
+static char *tags[] = {"  ", " {} ", "  ", "  ", "  "};
 
-static const char* eww[] = { "eww", "-c", "/home/siduck/.config/chadwm/eww", "open" , "eww", NULL };
+static const char* eww[] = { "eww", "-c", "/home/userh/.config/artdwm/eww", "open" , "eww", NULL };
 
 static const Launcher launchers[] = {
     /* command     name to display */
@@ -139,19 +140,22 @@ static const Key keys[] = {
 
     // brightness and audio 
     {0,             XF86XK_AudioLowerVolume,    spawn, {.v = downvol}},
-	{0,             XF86XK_AudioMute, spawn,    {.v = mutevol }},
-	{0,             XF86XK_AudioRaiseVolume,    spawn, {.v = upvol}},
-	{0,				XF86XK_MonBrightnessUp,     spawn,	{.v = light_up}},
-	{0,				XF86XK_MonBrightnessDown,   spawn,	{.v = light_down}},
+    {0,             XF86XK_AudioMute,           spawn, {.v = mutevol }},
+    {0,             XF86XK_AudioRaiseVolume,    spawn, {.v = upvol}},
+    {0,             XF86XK_MonBrightnessUp,     spawn, {.v = light_up}},
+    {0,             XF86XK_MonBrightnessDown,   spawn, {.v = light_down}},
 
-    // screenshot fullscreen and cropped
-    {MODKEY|ControlMask,                XK_u,       spawn,
-        SHCMD("maim | xclip -selection clipboard -t image/png")},
-    {MODKEY,                            XK_u,       spawn,
-        SHCMD("maim --select | xclip -selection clipboard -t image/png")},
+    // screenshot
+    {0,             XK_Print,                   spawn, SHCMD("flameshot gui -d 0")},
+    {MODKEY|ControlMask,                XK_u,       spawn, SHCMD("maim | xclip -selection clipboard -t image/png")},
+    {MODKEY,                            XK_u,       spawn, SHCMD("maim --select | xclip -selection clipboard -t image/png")},
 
-    { MODKEY,                           XK_c,       spawn,          SHCMD("rofi -show drun") },
-    { MODKEY,                           XK_Return,  spawn,          SHCMD("st")},
+    // lockscreen
+    { MODKEY|ShiftMask,                 XK_x,       spawn, SHCMD("slock") },
+
+    // rofi launcher and terminal
+    { MODKEY,                           XK_p,       spawn, SHCMD("sh /home/userh/.config/rofi/launchers/misc/launcher.sh") },
+    { MODKEY,                           XK_Return,  spawn, SHCMD("wezterm")},
 
     // toggle stuff
     { MODKEY,                           XK_b,       togglebar,      {0} },
@@ -258,21 +262,8 @@ static const Button buttons[] = {
     { ClkLtSymbol,          0,              Button1,        setlayout,      {0} },
     { ClkLtSymbol,          0,              Button3,        setlayout,      {.v = &layouts[2]} },
     { ClkWinTitle,          0,              Button2,        zoom,           {0} },
-    { ClkStatusText,        0,              Button2,        spawn,          SHCMD("st") },
+    { ClkStatusText,        0,              Button2,        spawn,          SHCMD("wezterm") },
 
-    /* Keep movemouse? */
-    /* { ClkClientWin,         MODKEY,         Button1,        movemouse,      {0} }, */
-
-    /* placemouse options, choose which feels more natural:
-    *    0 - tiled position is relative to mouse cursor
-    *    1 - tiled position is relative to window center
-    *    2 - mouse pointer warps to window center
-    *
-    * The moveorplace uses movemouse or placemouse depending on the floating state
-    * of the selected client. Set up individual keybindings for the two if you want
-    * to control these separately (i.e. to retain the feature to move a tiled window
-    * into a floating position).
-    */
     { ClkClientWin,         MODKEY,         Button1,        moveorplace,    {.i = 0} },
     { ClkClientWin,         MODKEY,         Button2,        togglefloating, {0} },
     { ClkClientWin,         MODKEY,         Button3,        resizemouse,    {0} },
